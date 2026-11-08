@@ -626,6 +626,8 @@ async function enterTable(){
   $('#mePill').innerHTML = me==='azra' ? '<span class="red">♥</span>&nbsp;Azo' : '♠&nbsp;Flips';
   if(started){ renderTable(); return; }
   started=true;
+  $('#today').innerHTML='<p class="msg">Shuffling the deck…</p>';
+  try{ await storeReady; }catch(e){ return; }
   store.onState(st=>{ const prevW=wishes(); S=st; renderTable(); if(wishes()>prevW && prevW!==null) bumpWish(); refreshOpenCard(); });
 }
 function bumpWish(){ const p=$('#wishPill'); p.classList.remove('wish-bump'); void p.offsetWidth; p.classList.add('wish-bump'); }
@@ -868,18 +870,22 @@ function devPanel(){
 /* =========================================================
    BOOT
    ========================================================= */
-(async function boot(){
-  try{ store = CONFIG.FIREBASE ? await makeFirestore(CONFIG.FIREBASE) : makeLocalStore(); await store.init(); }
-  catch(e){
-    console.error('Firebase failed',e);
-    if(CONFIG.FIREBASE){ // never fall back silently: answers would stay on this device only
-      document.body.insertAdjacentHTML('beforeend',`<div class="vault show"><div class="big">🃏</div><h2 class="title">The table is out of reach.</h2>
-        <p class="sub">Check the internet connection and reload the page.</p><button class="btn" onclick="location.reload()">Reload</button></div>`);
-      return;
+// Screens appear immediately; Firebase connects in the background.
+let storeReady;
+(function boot(){
+  storeReady=(async()=>{
+    try{ store = CONFIG.FIREBASE ? await makeFirestore(CONFIG.FIREBASE) : makeLocalStore(); await store.init(); }
+    catch(e){
+      console.error('Firebase failed',e);
+      if(CONFIG.FIREBASE){ // never fall back silently: answers would stay on this device only
+        document.body.insertAdjacentHTML('beforeend',`<div class="vault show"><div class="big">🃏</div><h2 class="title">The table is out of reach.</h2>
+          <p class="sub">Check the internet connection and reload the page.</p><button class="btn" onclick="location.reload()">Reload</button></div>`);
+        throw e;
+      }
+      store=makeLocalStore();
     }
-    store=makeLocalStore();
-  }
-  if(store.mode==='local' || new URLSearchParams(location.search).has('dev')) devPanel();
+    if(store.mode==='local' || new URLSearchParams(location.search).has('dev')) devPanel();
+  })();
   if(!ls.get(LS.intro)) runIntro();
   else if(sessionStorage.getItem(LS.pinOk)) afterPin();
   else runPin();
