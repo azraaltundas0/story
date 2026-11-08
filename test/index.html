@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chapter 3 · The Card Table</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   CHAPTER 3 · NOVEMBER · THE CARD TABLE
+   ========================================================= */
+:root{
+  --felt:#0f4d34; --felt-2:#0b3a27; --felt-3:#145c3f;
+  --burgundy:#6e1424; --burgundy-2:#8c1d31;
+  --gold:#c9a24a; --gold-2:#e6c877; --cream:#f6efdf; --ink:#2a1a12;
+  --red:#b3202f; --black:#1c1c1c;
+  --card-w:74px; --card-h:106px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{
+  font-family:Inter,system-ui,sans-serif;color:var(--cream);
+  background:
+    radial-gradient(ellipse at 50% 35%, var(--felt-3) 0%, var(--felt) 45%, var(--felt-2) 100%);
+  min-height:100vh;overflow-x:hidden;
+}
+body::before{ /* felt grain */
+  content:"";position:fixed;inset:0;pointer-events:none;opacity:.18;
+  background-image:radial-gradient(rgba(0,0,0,.35) 1px, transparent 1px);
+  background-size:3px 3px;
+}
+.screen{position:relative;min-height:100vh;display:none;flex-direction:column;align-items:center;
+  padding:28px 16px calc(24px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto}
+.screen.active{display:flex}
+h1,h2,h3{font-family:'Playfair Display',serif;margin:0}
+.kicker{letter-spacing:.32em;text-transform:uppercase;font-size:11px;color:var(--gold-2);opacity:.85}
+.title{font-size:34px;font-weight:800;color:var(--gold-2);text-shadow:0 2px 0 rgba(0,0,0,.35);text-align:center}
+.sub{font-family:'Playfair Display',serif;font-style:italic;font-size:16px;opacity:.85;text-align:center;margin-top:6px}
+.btn{
+  font:600 15px Inter,sans-serif;color:var(--ink);background:linear-gradient(180deg,var(--gold-2),var(--gold));
+  border:none;border-radius:999px;padding:13px 26px;cursor:pointer;box-shadow:0 4px 0 #8a6a25,0 8px 18px rgba(0,0,0,.3);
+  transition:transform .12s, box-shadow .12s
+}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #8a6a25,0 4px 10px rgba(0,0,0,.3)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.btn.ghost{background:transparent;color:var(--gold-2);border:1.5px solid var(--gold);box-shadow:none}
+
+/* ---------- playing cards ---------- */
+.pcard{width:var(--card-w);height:var(--card-h);border-radius:9px;position:relative;
+  transform-style:preserve-3d;transition:transform .6s cubic-bezier(.2,.8,.2,1)}
+.pcard .face,.pcard .back{position:absolute;inset:0;border-radius:inherit;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  box-shadow:0 3px 8px rgba(0,0,0,.35)}
+.pcard .back{
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 16px, transparent 17px),
+    repeating-linear-gradient(45deg, rgba(230,200,119,.22) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(-45deg, rgba(230,200,119,.22) 0 2px, transparent 2px 9px),
+    var(--burgundy);
+  border:3px solid var(--cream);outline:1px solid var(--gold);outline-offset:-7px;
+  display:flex;align-items:center;justify-content:center;
+}
+.pcard .back::after{content:"☾☀";font-size:15px;color:var(--gold-2);background:var(--burgundy);
+  padding:5px 6px;border-radius:50%;border:1px solid var(--gold);letter-spacing:-2px}
+.pcard .face{background:var(--cream);color:var(--ink);transform:rotateY(180deg);
+  display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;border:1px solid #d8ccb0}
+.pcard.flipped{transform:rotateY(180deg)}
+.corner{position:absolute;font-family:'Playfair Display',serif;font-weight:800;line-height:.95;text-align:center;font-size:14px}
+.corner.tl{top:6px;left:7px}.corner.br{bottom:6px;right:7px;transform:rotate(180deg)}
+.red{color:var(--red)}.blk{color:var(--black)}
+
+/* ---------- INTRO ---------- */
+#intro .deal-title{margin-top:18px;transition:opacity .6s}
+#memGrid{display:grid;grid-template-columns:repeat(4,var(--card-w));gap:12px;margin:28px 0 18px;perspective:900px}
+#memGrid .pcard{cursor:pointer;opacity:0;transform:translateY(-60vh) rotate(-25deg)}
+#memGrid .pcard.dealt{opacity:1;transform:none}
+#memGrid .pcard.dealt.flipped{transform:rotateY(180deg)}
+#memGrid .pcard.matched .face{box-shadow:0 0 0 2px var(--gold-2),0 0 18px rgba(230,200,119,.6)}
+#memGrid .face{font-size:34px}
+.hint{font-family:'Playfair Display',serif;font-style:italic;text-align:center;font-size:16px;min-height:44px;opacity:0;transition:opacity .8s;max-width:320px}
+.hint.show{opacity:1}
+#tray{display:flex;gap:12px;margin:14px 0 8px;min-height:var(--card-h)}
+.digit{width:64px;height:92px;border-radius:9px;background:var(--cream);color:var(--burgundy);
+  font:800 44px 'Playfair Display',serif;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 3px 8px rgba(0,0,0,.35);cursor:pointer;user-select:none;position:relative;
+  animation:pop .45s cubic-bezier(.2,1.6,.4,1);transition:transform .2s, box-shadow .2s}
+.digit.sel{transform:translateY(-10px);box-shadow:0 0 0 3px var(--gold-2),0 10px 18px rgba(0,0,0,.4)}
+.digit.slot{background:rgba(0,0,0,.18);box-shadow:inset 0 0 0 1.5px rgba(230,200,119,.35);animation:none;cursor:default}
+.tray-note{font-size:12px;opacity:.7;min-height:18px;text-align:center}
+@keyframes pop{0%{transform:scale(.3);opacity:0}100%{transform:scale(1);opacity:1}}
+.vault{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  background:rgba(8,40,26,.9);opacity:0;pointer-events:none;transition:opacity .6s;z-index:40;text-align:center;padding:24px}
+.vault.show{opacity:1;pointer-events:auto}
+.vault .big{font-size:64px;animation:pop .6s}
+
+/* ---------- PIN ---------- */
+#pin .dots{display:flex;gap:14px;margin:34px 0 26px}
+#pin .dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--gold-2)}
+#pin .dot.on{background:var(--gold-2)}
+#pin .pad{display:grid;grid-template-columns:repeat(3,72px);gap:14px}
+#pin .key{height:72px;border-radius:14px;background:rgba(0,0,0,.2);border:1px solid rgba(230,200,119,.35);
+  color:var(--cream);font:600 24px Inter,sans-serif;cursor:pointer}
+#pin .key:active{background:rgba(230,200,119,.25)}
+.shake{animation:shake .4s}
+@keyframes shake{0%,100%{transform:none}25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
+
+/* ---------- WHO ---------- */
+#who .choices{display:flex;gap:22px;margin-top:40px}
+#who .choice{width:130px;height:186px;border-radius:14px;background:var(--cream);color:var(--ink);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(0,0,0,.35);
+  font:800 26px 'Playfair Display',serif;transition:transform .2s;position:relative}
+#who .choice:hover{transform:translateY(-6px) rotate(-2deg)}
+#who .choice span{font-size:42px}
+
+/* ---------- TABLE ---------- */
+#table{padding-top:16px}
+.topbar{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pill{background:rgba(0,0,0,.25);border:1px solid rgba(230,200,119,.4);border-radius:999px;padding:7px 13px;font-size:13px;
+  color:var(--gold-2);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.pill.btnlike{cursor:pointer}
+.wish-pill{font-weight:600}
+.wish-pill .chip{width:20px;height:20px;border-radius:50%;background:
+  repeating-conic-gradient(var(--burgundy-2) 0 30deg, var(--cream) 30deg 60deg);border:2px solid var(--gold-2);position:relative}
+.wish-pill .chip::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--burgundy-2)}
+.wish-bump{animation:bump .7s}
+@keyframes bump{40%{transform:scale(1.25)}}
+.table-head{margin:22px 0 4px;text-align:center}
+.table-head .title{font-size:28px}
+.today{width:100%;margin-top:18px;min-height:240px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.today .msg{font-family:'Playfair Display',serif;font-style:italic;font-size:17px;text-align:center;opacity:.92;max-width:330px}
+.status-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.stat{font-size:12px;padding:5px 11px;border-radius:999px;background:rgba(0,0,0,.25)}
+.stat.ok{color:#bff0c9}.stat.wait{color:#f3d9a0}
+.mini-open{cursor:pointer;transition:transform .2s}
+.mini-open:hover{transform:translateY(-4px)}
+.mini-open.flipped{transform:none}.mini-open .back{display:none}
+.mini-open .face{transform:none;backface-visibility:visible}
+.mini-open .q{font-family:Inter,sans-serif;font-size:10.5px;padding:0 9px;text-align:center;line-height:1.3}
+.big-card{--card-w:160px;--card-h:228px}
+.big-card .face{padding:30px 16px}
+.big-card .corner{font-size:20px}
+.big-card .q{font-size:15px;font-weight:600;color:var(--ink)}
+
+/* fan */
+.hand-wrap{width:100vw;max-width:100vw;margin-top:auto;padding-top:20px;position:relative}
+.hand-label{text-align:center;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-2);opacity:.75;margin-bottom:6px}
+.hand{display:flex;overflow-x:auto;overflow-y:visible;padding:46px 40px 22px;scroll-snap-type:x proximity;scrollbar-width:none;
+  -webkit-overflow-scrolling:touch}
+.hand::-webkit-scrollbar{display:none}
+.hand .pcard{flex:0 0 auto;margin-left:-40px;cursor:pointer;scroll-snap-align:center;transition:transform .25s, filter .25s}
+.hand .pcard:first-child{margin-left:0}
+.hand .pcard.lift{transform:translateY(-34px) rotate(0deg)!important;z-index:5}
+.hand.locked .pcard{filter:grayscale(.55) brightness(.7);cursor:not-allowed}
+.lock-note{text-align:center;font-size:13px;opacity:.85;margin-top:-6px;min-height:20px;font-style:italic;font-family:'Playfair Display',serif}
+.play-btn-wrap{display:flex;justify-content:center;min-height:52px;margin-top:4px}
+
+/* ---------- MODAL CARD ---------- */
+.overlay{position:fixed;inset:0;background:rgba(5,25,16,.86);backdrop-filter:blur(3px);z-index:30;
+  display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:22px 16px 40px}
+.overlay.show{display:flex}
+.sheet{width:100%;max-width:440px;display:flex;flex-direction:column;align-items:center;gap:16px}
+.close{align-self:flex-end;background:none;border:none;color:var(--gold-2);font-size:28px;cursor:pointer;line-height:1}
+.q-card{width:100%;background:var(--cream);color:var(--ink);border-radius:16px;padding:34px 22px 24px;position:relative;
+  box-shadow:0 10px 26px rgba(0,0,0,.45);animation:flipIn .7s cubic-bezier(.2,.8,.2,1)}
+@keyframes flipIn{0%{transform:perspective(900px) rotateY(90deg)}100%{transform:none}}
+.q-card .corner{font-size:22px}
+.q-card .num{text-align:center;font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:var(--burgundy);opacity:.8}
+.q-card h3{font-size:22px;text-align:center;margin:10px 0 22px;line-height:1.3}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{border:1.5px solid #cdbf9c;background:#fffaf0;border-radius:12px;padding:13px 14px;font:500 15px Inter,sans-serif;color:var(--ink);
+  cursor:pointer;text-align:left;transition:all .15s}
+.opt.sel{border-color:var(--burgundy);background:#f7e3e3;box-shadow:inset 0 0 0 1px var(--burgundy)}
+.opt[disabled]{cursor:default}
+.txt{width:100%;border:1.5px solid #cdbf9c;border-radius:12px;padding:13px 14px;font:500 16px Inter,sans-serif;background:#fffaf0;color:var(--ink)}
+.q-actions{display:flex;justify-content:center;margin-top:20px}
+.waiting{text-align:center;font-family:'Playfair Display',serif;font-style:italic;font-size:16px;margin-top:16px;color:var(--burgundy)}
+.reveal{width:100%;display:flex;gap:14px;justify-content:center}
+.rcard{flex:1;max-width:190px;min-height:150px;border-radius:14px;perspective:900px}
+.rcard .inner{position:relative;width:100%;height:100%;min-height:150px;transform-style:preserve-3d;transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+.rcard.flip .inner{transform:rotateY(180deg)}
+.rcard .b,.rcard .f{position:absolute;inset:0;border-radius:14px;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;text-align:center}
+.rcard .b{background:repeating-linear-gradient(45deg, rgba(230,200,119,.22) 0 2px, transparent 2px 9px),var(--burgundy);border:3px solid var(--cream)}
+.rcard .f{background:var(--cream);color:var(--ink);transform:rotateY(180deg);border:1px solid #d8ccb0}
+.rcard .who{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--burgundy);margin-bottom:8px}
+.rcard .ans{font:700 18px 'Playfair Display',serif}
+.verdict{text-align:center;font:700 22px 'Playfair Display',serif;color:var(--gold-2);opacity:0;transition:opacity .6s}
+.verdict.show{opacity:1}
+.verdict small{display:block;font:italic 500 15px 'Playfair Display',serif;color:var(--cream);opacity:.85;margin-top:4px}
+.note::before{content:'♥ Azo: ';font-style:normal;color:var(--gold-2);font-size:13px;letter-spacing:.05em}
+.note{background:rgba(0,0,0,.25);border-left:3px solid var(--gold);padding:12px 14px;border-radius:8px;font-family:'Playfair Display',serif;font-style:italic;width:100%}
+
+/* ---------- ARCHIVE ---------- */
+.arch-list{width:100%;display:flex;flex-direction:column;gap:12px}
+.arch-item{background:rgba(0,0,0,.22);border:1px solid rgba(230,200,119,.25);border-radius:14px;padding:14px;cursor:pointer}
+.arch-item .top{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--gold-2);margin-bottom:6px}
+.arch-item .qq{font-family:'Playfair Display',serif;font-size:16px}
+.arch-item .aa{display:flex;gap:10px;margin-top:8px;font-size:13px;opacity:.9;flex-wrap:wrap}
+.arch-item .aa b{color:var(--gold-2);font-weight:600}
+.empty{opacity:.7;font-style:italic;text-align:center;font-family:'Playfair Display',serif;margin-top:30px}
+
+/* ---------- AZO CODE ---------- */
+.code-box{display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:22px;opacity:0;transition:opacity .4s;pointer-events:none}
+.code-box.show{opacity:1;pointer-events:auto}
+.code-box input{width:170px;text-align:center;letter-spacing:.6em;font:700 24px Inter,sans-serif;padding:12px;border-radius:12px;
+  border:1.5px solid var(--gold);background:rgba(0,0,0,.25);color:var(--cream)}
+/* ---------- FINALE ---------- */
+.letter{width:100%;background:var(--cream);color:var(--ink);border-radius:6px;padding:34px 26px 30px;position:relative;
+  box-shadow:0 14px 34px rgba(0,0,0,.5);font-family:'Playfair Display',serif;line-height:1.6;font-size:17px;animation:rise 1.1s cubic-bezier(.2,.8,.2,1)}
+.letter::before{content:"";position:absolute;inset:8px;border:1px solid #d8c69a;border-radius:3px;pointer-events:none}
+.letter .salute{font-style:italic;font-size:20px;color:var(--burgundy);margin-bottom:12px}
+.letter p{margin:0 0 12px}
+.letter .sign{text-align:right;font-style:italic;margin-top:18px;color:var(--burgundy)}
+.letter .wishline{text-align:center;font-weight:700;color:var(--burgundy);margin:18px 0 6px;font-size:18px}
+@keyframes rise{0%{transform:translateY(60px);opacity:0}100%{transform:none;opacity:1}}
+.preview-tag{font-size:12px;opacity:.75;font-style:italic}
+/* ---------- DEV ---------- */
+#dev{position:fixed;right:10px;bottom:10px;flex-direction:column;align-items:flex-end;z-index:50;display:none;gap:6px;flex-wrap:wrap;max-width:calc(100vw - 20px)}
+#dev.show{display:flex}
+#dev:not(.open) button:not(:first-child){display:none}
+#dev button{font:600 11px Inter,sans-serif;background:#000a;color:#ffd98a;border:1px solid #ffd98a66;border-radius:8px;padding:6px 9px;cursor:pointer}
+.toast{position:fixed;left:50%;top:18px;transform:translateX(-50%) translateY(-80px);background:var(--cream);color:var(--ink);
+  padding:10px 18px;border-radius:999px;font-size:14px;font-weight:600;z-index:60;transition:transform .4s;box-shadow:0 6px 16px rgba(0,0,0,.3)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- ================= INTRO (first visit only) ================= -->
+<section id="intro" class="screen">
+  <div class="kicker">Chapter 3 · November</div>
+  <h1 class="title deal-title">Deal me in.</h1>
+  <p class="sub" id="introSub">The table is set. Find the pairs.</p>
+  <div id="memGrid"></div>
+  <div id="tray"></div>
+  <div class="tray-note" id="trayNote"></div>
+  <p class="hint" id="hint">Rome. A hill. Prosecco and a song.<br>Put the cards in the right order.</p>
+</section>
+
+<!-- ================= PIN ================= -->
+<section id="pin" class="screen">
+  <div class="kicker" style="margin-top:40px">Chapter 3 · November</div>
+  <h1 class="title" style="margin-top:10px">The Card Table</h1>
+  <p class="sub">You know the date.</p>
+  <div class="dots" id="dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
+  <div class="pad" id="pad"></div>
+</section>
+
+<!-- ================= WHO ================= -->
+<section id="who" class="screen">
+  <div class="kicker" style="margin-top:50px">Before we deal</div>
+  <h1 class="title" style="margin-top:10px">Who's holding<br>the cards?</h1>
+  <div class="choices">
+    <div class="choice" data-p="azra"><span class="red">♥</span>Azo</div>
+    <div class="choice" data-p="philip"><span class="blk">♠</span>Flips</div>
+  </div>
+  <div class="code-box" id="codeBox">
+    <p class="sub" style="margin:0;font-size:15px">Only the real Azo knows this one.</p>
+    <input id="azoCode" type="password" inputmode="numeric" maxlength="8" autocomplete="off">
+    <button class="btn" id="azoGo">Enter</button>
+  </div>
+  <p class="sub" style="margin-top:28px;font-size:14px">This device will remember you.</p>
+</section>
+
+<!-- ================= TABLE ================= -->
+<section id="table" class="screen">
+  <div class="topbar">
+    <div class="pill" id="mePill">♥ Azo</div>
+    <div class="pill wish-pill" id="wishPill"><span class="chip"></span><span id="wishCount">0</span> wishes</div>
+    <div class="pill btnlike" id="archBtn">Archive</div>
+  </div>
+  <div class="table-head">
+    <div class="kicker">Chapter 3 · November</div>
+    <h2 class="title">The Card Table</h2>
+    <p class="sub" id="progressTxt">0 of 30 cards played</p>
+  </div>
+  <div class="today" id="today"></div>
+  <div class="hand-wrap">
+    <div class="hand-label" id="handLabel">Your hand</div>
+    <div class="hand" id="hand"></div>
+    <div class="lock-note" id="lockNote"></div>
+    <div class="play-btn-wrap" id="playWrap"></div>
+  </div>
+</section>
+
+<!-- ================= CARD MODAL ================= -->
+<div class="overlay" id="cardOv"><div class="sheet" id="cardSheet"></div></div>
+<!-- ================= ARCHIVE ================= -->
+<div class="overlay" id="archOv"><div class="sheet">
+  <button class="close" id="archClose">×</button>
+  <div class="kicker">Played cards</div>
+  <h2 class="title" style="font-size:28px">The Archive</h2>
+  <div class="arch-list" id="archList"></div>
+</div></div>
+
+<!-- ================= FINALE ================= -->
+<div class="overlay" id="finOv"><div class="sheet">
+  <button class="close" id="finClose">×</button>
+  <div class="kicker">The last card · Chapter 3</div>
+  <h2 class="title" style="font-size:30px">Three months later…</h2>
+  <div class="preview-tag" id="finTag"></div>
+  <div class="letter" id="letter"></div>
+</div></div>
+<div class="vault" id="vault"><div class="big">🔓</div><h2 class="title">The table is open.</h2><p class="sub">15 · 07 — of course.</p></div>
+<div class="toast" id="toast"></div>
+<div id="dev"></div>
+
+<script type="module">
+/* =========================================================
+   CONFIG
+   ========================================================= */
+const CONFIG = {
+  PIN: '1507',
+  AZO_CODE: '2907',               // Azo's private code (only Azra knows)
+  // ⚠️ TIME LOCK — keep FALSE in the prototype. Turn on only when Azra says so.
+  TIME_LOCK: false,
+  START_DATE: '2026-11-09',       // card #1 opens on this day when TIME_LOCK is true
+  ROOM: 'november-test',          // testing room — switch to 'november-2026' before Flips plays (fresh, empty table)
+  // Paste the Firebase web config here. While null, the site runs in local test mode.
+  FIREBASE: {
+    apiKey: "AIzaSyBJdtw9CWPhPuWoap6GvYTRyNzRKWo2JXU",
+    authDomain: "card-table-d3707.firebaseapp.com",
+    projectId: "card-table-d3707",
+    storageBucket: "card-table-d3707.firebasestorage.app",
+    messagingSenderId: "86171088849",
+    appId: "1:86171088849:web:f651d18bc63905843b52f0",
+  },
+  /* FIREBASE: {
+       apiKey: "...", authDomain: "...", projectId: "...",
+       storageBucket: "...", messagingSenderId: "...", appId: "..."
+     }, */
+};
+const LS = { intro:'nov_intro_done', player:'nov_player', pinOk:'nov_pin_session' };
+const NAMES = { azra:'Azo', philip:'Flips' };
+const OTHER = { azra:'philip', philip:'azra' };
+
+/* =========================================================
+   THE 30 CARDS
+   type: 'choice' (options) | 'text'
+   note: optional sweet note from Azo, shown after the reveal
+   ========================================================= */
+/* ✍️ Azo's sweet notes — one per card, same order as CARDS. Shown after both answers flip. */
+const NOTES = [
+ "I'd blink first just to see you laugh. (I wouldn't. I'd win.)",
+ "Whoever gets bitten, the other one is staying anyway. Zombie love is still love.",
+ "For the record: if I ever peeked, it was purely for research.",
+ "Please be gentle with my hair.",
+ "Whatever the genre, I'd watch it a thousand times.",
+ "If you lasted a week without your phone, who would get all my voice messages?",
+ "Getting kicked out together still counts as a date.",
+ "Losing to you is fine. Losing at Pişti is not.",
+ "As long as it loves you a tiny bit less than I do.",
+ "Detective A would like it noted that she planned this entire case.",
+ "Either way, you're in the passenger seat next to me.",
+ "Honestly? I'd take all three.",
+ "Bring tissues. For everyone.",
+ "I'd trade all three for one more dinner with you.",
+ "If it ever happens, I hope it's at least a funny one.",
+ "The priest was a legend. But you're my favourite dancer.",
+ "Whatever you pick, I'm stealing a bite.",
+ "Any Sunday with you is a dream Sunday.",
+ "First album: 'Shuffle & Deal'. Tour starts in Salerno.",
+ "I already know who would be hiding chocolate somewhere.",
+ "And we'd name it after a card. Obviously.",
+ "Noted. I'll chew quietly. Probably.",
+ "I'll accept your answer gracefully. Unless it's wrong.",
+ "Pizza, cards and you. I'm not asking for more.",
+ "If we die in the first ten minutes, at least we die holding hands.",
+ "Too late. They're all permanent.",
+ "I'm not stubborn. I'm just right.",
+ "Possession is nine tenths of the law.",
+ "Anywhere, as long as it's us.",
+ "Whatever word you chose, I hope it's the same as mine.",
+];
+const W = ['Azo','Flips'];
+const CARDS = [
+ {q:"Who would blink first in a staring contest?", o:W},
+ {q:"Zombie apocalypse. Who gets bitten first?", o:W},
+ {q:"Who secretly peeks at the other's cards in Shithead?", o:[...W,'Both of us, obviously']},
+ {q:"We swap bodies for a day. First thing you do?", o:['Go shopping','Take a nap','Stare in the mirror for an hour']},
+ {q:"If our love story were a movie, the genre would be…", o:['Rom-com','Action','Chaotic comedy']},
+ {q:"Who could survive one week without their phone?", o:[...W,"Neither of us, let's be honest"]},
+ {q:"Who would get kicked out of a museum first?", o:W},
+ {q:"Who's the bigger sore loser after a lost Pişti game?", o:[...W,'We both sulk']},
+ {q:"Our future pet:", o:['A cat','A dog','A very judgmental parrot']},
+ {q:"Who would make the better spy?", o:['Detective A','Detective K']},
+ {q:"We win the lottery tomorrow. First move?", o:['Back to Salerno','Buy a ridiculous car']},
+ {q:"Pick a superpower for our relationship:", o:['Teleport to each other',"Read each other's minds",'Freeze time on lazy Sundays']},
+ {q:"Who would cry first at our wedding?", o:[...W,'The musician from Rome']},
+ {q:"For one month you can only eat…", o:['Carbonara','Cornetto','KFC']},
+ {q:"Who's more likely to text something embarrassing to the wrong person?", o:W},
+ {q:"Who would win a dance-off against the karaoke priest?", o:[...W,'Nobody beats the priest']},
+ {q:"Flips' perfect breakfast:", o:['Cornetto & Americano','Full German breakfast']},
+ {q:"Our dream Sunday:", o:['Bed until noon','Long walk by the sea','Card game marathon']},
+ {q:"If we had a band, it would be called…", o:['The Shitheads','Spatz & Moon','Punto e Virgola Revival']},
+ {q:"Who would last longer without sweets for a week?", o:W},
+ {q:"Who would adopt a stray animal without asking first?", o:W},
+ {q:"What annoys you more?", o:['Slow walkers','Loud chewing','Spoilers']},
+ {q:"Who gives the better gifts? (Think very carefully…)", o:W},
+ {q:"Ideal date night:", o:['Fancy dinner','Pizza & cards at home','Karaoke chaos']},
+ {q:"Who survives longer in a horror movie?", o:[...W,'We both die in the first 10 minutes']},
+ {q:"Which nickname should be banned forever?", o:['Spatzkim','Schleckermaus','Moon']},
+ {q:"Who is more stubborn?", o:[...W,'This question is unfair']},
+ {q:"Who steals the blanket at night?", o:W},
+ {q:"In 10 years we live…", o:['In Berlin','In Italy','Wherever the giant dog wants']},
+ {q:"Describe us in one word.", type:'text'},
+].map((c,i)=>({id:i, type:c.type||'choice', note:NOTES[i]||'', ...c}));
+
+const SUITS = ['♥','♠','♦','♣'];
+const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+CARDS.forEach((c,i)=>{ c.suit = SUITS[i%4]; c.rank = RANKS[Math.floor(i/4)+ (i%4===0?0:0)]; });
+// spread ranks a bit more so the hand looks like a real mixed deck
+CARDS.forEach((c,i)=>{ c.rank = RANKS[(i*5)%13]; });
+const isRed = s => s==='♥'||s==='♦';
+// fixed, shuffled display order of the hand
+const HAND_ORDER = (()=>{ const a=CARDS.map(c=>c.id); let s=1507; for(let i=a.length-1;i>0;i--){ s=(s*9301+49297)%233280; const j=Math.floor(s/233280*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; })();
+
+/* =========================================================
+   STORE — Firestore, or local test mode
+   state = { picks:{n:{cardId,by}}, status:{n:{azra,philip,match,conf_azra,conf_philip}} }
+   ========================================================= */
+const ls = {
+  get(k,d=null){ try{ const v=localStorage.getItem(k); return v===null?d:v; }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} },
+};
+function makeLocalStore(){
+  const KEY='nov_localdb';
+  const load=()=>{ try{ return JSON.parse(ls.get(KEY)||'') }catch(e){ return null } } ;
+  let db = load() || {picks:{},status:{},answers:{}};
+  const subs=[];
+  const save=()=>{ ls.set(KEY,JSON.stringify(db)); emit(); };
+  const emit=()=>subs.forEach(f=>f({picks:db.picks,status:db.status}));
+  window.addEventListener('storage',e=>{ if(e.key===KEY){ db=load()||db; emit(); }});
+  return {
+    mode:'local',
+    async init(){},
+    onState(f){ subs.push(f); f({picks:db.picks,status:db.status}); },
+    async pick(n,cardId,by){ if(db.picks[n]) return false; db.picks[n]={cardId,by,at:Date.now()}; save(); return true; },
+    async submit(n,p,answer){ if(db.answers[n+'_'+p]) return; db.answers[n+'_'+p]={answer}; db.status[n]={...(db.status[n]||{}),[p]:true}; save(); },
+    async getAnswers(n){ return {azra:db.answers[n+'_azra']?.answer, philip:db.answers[n+'_philip']?.answer}; },
+    async getMine(n,p){ return db.answers[n+'_'+p]?.answer; },
+    async patchStatus(n,obj){ db.status[n]={...(db.status[n]||{}),...obj}; save(); },
+    reset(){ db={picks:{},status:{},answers:{}}; save(); },
+  };
+}
+async function makeFirestore(cfg){
+  const V='10.12.2';
+  const {initializeApp} = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`);
+  const {getAuth,signInAnonymously,onAuthStateChanged} = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`);
+  const F = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`);
+  const app=initializeApp(cfg), auth=getAuth(app), fs=F.getFirestore(app);
+  const R=CONFIG.ROOM;
+  const col=c=>F.collection(fs,'rooms',R,c), dref=(c,id)=>F.doc(fs,'rooms',R,c,String(id));
+  let uid=null;
+  return {
+    mode:'firebase',
+    async init(){ await new Promise((res,rej)=>{ onAuthStateChanged(auth,u=>{ if(u){uid=u.uid;res();} }); signInAnonymously(auth).catch(rej); }); },
+    onState(f){
+      const st={picks:{},status:{}}; const push=()=>f({picks:{...st.picks},status:{...st.status}});
+      F.onSnapshot(col('picks'),s=>{ st.picks={}; s.forEach(d=>st.picks[d.id]=d.data()); push(); });
+      F.onSnapshot(col('status'),s=>{ st.status={}; s.forEach(d=>st.status[d.id]=d.data()); push(); });
+    },
+    async pick(n,cardId,by){
+      try{ return await F.runTransaction(fs, async tx=>{ const r=dref('picks',n); const s=await tx.get(r); if(s.exists()) return false; tx.set(r,{cardId,by,at:Date.now()}); return true; }); }
+      catch(e){ console.error(e); return false; }
+    },
+    async submit(n,p,answer){
+      await F.setDoc(dref('answers',`${n}_${p}`),{answer,uid,at:Date.now()});
+      await F.setDoc(dref('status',n),{[p]:true},{merge:true});
+    },
+    async getAnswers(n){
+      const [a,b]=await Promise.all([F.getDoc(dref('answers',`${n}_azra`)),F.getDoc(dref('answers',`${n}_philip`))]);
+      return {azra:a.data()?.answer, philip:b.data()?.answer};
+    },
+    async getMine(n,p){ try{ const s=await F.getDoc(dref('answers',`${n}_${p}`)); return s.data()?.answer; }catch(e){ return undefined; } },
+    async patchStatus(n,obj){ await F.setDoc(dref('status',n),obj,{merge:true}); },
+    reset(){ alert('Reset is only available in local test mode.'); },
+  };
+}
+
+/* =========================================================
+   APP STATE
+   ========================================================= */
+let store, me = ls.get(LS.player), S = {picks:{},status:{}};
+const answersCache = {};       // n -> {azra, philip}
+const mineCache = {};          // n -> my answer
+let liftedId = null, openN = null, selOpt = null;
+
+const $ = s=>document.querySelector(s);
+const show = id=>{ document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('active',x.id===id)); window.scrollTo(0,0); };
+const toast = t=>{ const el=$('#toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),2200); };
+const norm = s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9ğüşöçı]/g,'');
+const playedCount = ()=>Object.keys(S.picks).length;
+const pickedIds = ()=>new Set(Object.values(S.picks).map(p=>p.cardId));
+const lastN = ()=>{ const ks=Object.keys(S.picks).map(Number); return ks.length?Math.max(...ks):null; };
+const wishes = ()=>Object.values(S.status).filter(s=>s.match===true).length;
+
+function daysOpen(){
+  if(!CONFIG.TIME_LOCK) return Infinity;
+  const [y,m,d]=CONFIG.START_DATE.split('-').map(Number);
+  const start=new Date(y,m-1,d), now=new Date(); now.setHours(0,0,0,0);
+  return Math.max(0, Math.floor((now-start)/86400000)+1);
+}
+// Can I pick a new card right now? → {ok, why}
+function canPick(){
+  const played=playedCount();
+  if(played>=CARDS.length) return {ok:false,why:'All 30 cards are on the table.'};
+  const ln=lastN();
+  if(ln!==null && !S.status[ln]?.[me]) return {ok:false,why:'Answer the card on the table first.'};
+  if(played>=daysOpen()) return {ok:false,why: played===0 ? 'The first card opens on November 9.' : 'The next card opens tomorrow. Sweet dreams ☾'};
+  return {ok:true};
+}
+
+/* =========================================================
+   CARD ELEMENTS
+   ========================================================= */
+function cardEl(c,{faceUp=false,big=false,showQ=false}={}){
+  const el=document.createElement('div');
+  el.className='pcard'+(big?' big-card':'')+(faceUp?' flipped':'');
+  const col=isRed(c.suit)?'red':'blk';
+  el.innerHTML=`<div class="back"></div><div class="face">
+     <div class="corner tl ${col}">${c.rank}<br>${c.suit}</div>
+     ${showQ?`<div class="q">${c.q}</div>`:`<div class="${col}" style="font-size:${big?64:30}px">${c.suit}</div>`}
+     <div class="corner br ${col}">${c.rank}<br>${c.suit}</div></div>`;
+  return el;
+}
+
+/* =========================================================
+   INTRO — memory game → arrange 1507
+   ========================================================= */
+function runIntro(){
+  show('intro');
+  const syms=['☾','☀','♥','♠'], deck=[...syms,...syms].sort(()=>Math.random()-.5);
+  const revealOrder=['0','7','1','5'];          // digits appear in this (wrong) order
+  const grid=$('#memGrid'); grid.innerHTML='';
+  let open=[], busy=false, found=0; const tray=[];
+  deck.forEach((s,i)=>{
+    const el=document.createElement('div'); el.className='pcard';
+    const col=(s==='♥')?'red':(s==='♠'?'blk':'');
+    el.innerHTML=`<div class="back"></div><div class="face"><span class="${col}" style="${col?'':'color:var(--burgundy)'}">${s}</span></div>`;
+    el.dataset.s=s; grid.appendChild(el);
+    setTimeout(()=>el.classList.add('dealt'), 300+i*110);
+    el.onclick=()=>{
+      if(busy||el.classList.contains('flipped')) return;
+      el.classList.add('flipped'); open.push(el);
+      if(open.length===2){
+        busy=true; const [a,b]=open;
+        if(a.dataset.s===b.dataset.s){
+          setTimeout(()=>{ a.classList.add('matched'); b.classList.add('matched'); open=[]; busy=false;
+            tray.push(revealOrder[found]); found++; renderTray(); if(found===4) $('#hint').classList.add('show'); },450);
+        } else setTimeout(()=>{ a.classList.remove('flipped'); b.classList.remove('flipped'); open=[]; busy=false; },850);
+      }
+    };
+  });
+  let sel=null;
+  function renderTray(){
+    const t=$('#tray'); t.innerHTML='';
+    for(let i=0;i<4;i++){
+      const d=document.createElement('div');
+      if(i<tray.length){ d.className='digit'+(sel===i?' sel':''); d.textContent=tray[i];
+        d.onclick=()=>{ if(tray.length<4) return;
+          if(sel===null){ sel=i; } else if(sel===i){ sel=null; } else { [tray[sel],tray[i]]=[tray[i],tray[sel]]; sel=null; check(); }
+          renderTray(); };
+      } else d.className='digit slot';
+      t.appendChild(d);
+    }
+    $('#trayNote').textContent = tray.length===4 ? 'Tap two cards to swap them.' : (tray.length?`${tray.length} of 4 found`:'');
+    $('#introSub').textContent = tray.length===4 ? 'Four numbers. One night.' : 'The table is set. Find the pairs.';
+  }
+  function check(){
+    if(tray.join('')===CONFIG.PIN){
+      ls.set(LS.intro,'1'); sessionStorage.setItem(LS.pinOk,'1');
+      setTimeout(()=>{ $('#vault').classList.add('show'); setTimeout(()=>{ $('#vault').classList.remove('show'); afterPin(); },2300); },350);
+    }
+  }
+  renderTray();
+}
+
+/* =========================================================
+   PIN
+   ========================================================= */
+function runPin(){
+  show('pin'); let v='';
+  const pad=$('#pad'); pad.innerHTML='';
+  ['1','2','3','4','5','6','7','8','9','','0','⌫'].forEach(k=>{
+    const b=document.createElement('button'); b.className='key'; b.textContent=k;
+    if(!k){ b.style.visibility='hidden'; }
+    b.onclick=()=>{
+      if(k==='⌫') v=v.slice(0,-1); else if(v.length<4) v+=k;
+      paint();
+      if(v.length===4){
+        if(v===CONFIG.PIN){ sessionStorage.setItem(LS.pinOk,'1'); setTimeout(afterPin,250); }
+        else { $('#dots').classList.add('shake'); setTimeout(()=>{ $('#dots').classList.remove('shake'); v=''; paint(); },420); }
+      }
+    };
+    pad.appendChild(b);
+  });
+  const paint=()=>document.querySelectorAll('#dots .dot').forEach((d,i)=>d.classList.toggle('on',i<v.length));
+  paint();
+}
+
+function afterPin(){
+  if(!me){
+    show('who');
+    const box=$('#codeBox'), inp=$('#azoCode');
+    document.querySelectorAll('#who .choice').forEach(c=>c.onclick=()=>{
+      if(c.dataset.p==='philip'){ me='philip'; ls.set(LS.player,me); enterTable(); return; }
+      box.classList.add('show'); inp.value=''; inp.focus();
+    });
+    const tryAzo=()=>{
+      if(inp.value===CONFIG.AZO_CODE){ me='azra'; ls.set(LS.player,me); box.classList.remove('show'); enterTable(); }
+      else { inp.classList.add('shake'); setTimeout(()=>{ inp.classList.remove('shake'); inp.value=''; },420); toast('Nice try, Detective K 🕵️'); }
+    };
+    $('#azoGo').onclick=tryAzo; inp.onkeydown=e=>{ if(e.key==='Enter') tryAzo(); };
+  }
+  else enterTable();
+}
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+let started=false;
+async function enterTable(){
+  show('table');
+  $('#mePill').innerHTML = me==='azra' ? '<span class="red">♥</span>&nbsp;Azo' : '♠&nbsp;Flips';
+  if(started){ renderTable(); return; }
+  started=true;
+  store.onState(st=>{ const prevW=wishes(); S=st; renderTable(); if(wishes()>prevW && prevW!==null) bumpWish(); refreshOpenCard(); });
+}
+function bumpWish(){ const p=$('#wishPill'); p.classList.remove('wish-bump'); void p.offsetWidth; p.classList.add('wish-bump'); }
+
+async function renderTable(){
+  $('#wishCount').textContent = wishes();
+  $('#wishPill').lastChild.textContent = wishes()===1?' wish':' wishes';
+  const played=playedCount();
+  $('#progressTxt').textContent = `${played} of ${CARDS.length} cards played`;
+
+  // today area
+  const t=$('#today'); t.innerHTML='';
+  if(allDone()){
+    t.innerHTML=`<p class="msg">All 30 cards are on the table.<br>One last thing is waiting for you…</p>`;
+    const b=document.createElement('button'); b.className='btn'; b.textContent='💌 Open the last card'; b.onclick=showFinale; t.appendChild(b);
+    maybeFinale();
+  } else {
+  const ln=lastN();
+  if(ln===null){
+    t.innerHTML=`<p class="msg">${me==='philip' ? 'Your hand is waiting. Pick any card you like — it becomes today\'s card for both of us.' : 'The hand is full. Whoever picks first chooses today\'s card for both of us.'}</p>`;
+  } else {
+    const c=CARDS[S.picks[ln].cardId], st=S.status[ln]||{};
+    const mini=cardEl(c,{faceUp:true,big:true,showQ:true}); mini.classList.add('mini-open');
+    mini.onclick=()=>openCard(ln);
+    t.appendChild(mini);
+    const row=document.createElement('div'); row.className='status-row';
+    row.innerHTML = ['azra','philip'].map(p=>`<span class="stat ${st[p]?'ok':'wait'}">${NAMES[p]} ${st[p]?'✓ answered':'… thinking'}</span>`).join('')
+      + (st.match===true?'<span class="stat ok">🪙 wish won</span>':'');
+    t.appendChild(row);
+    const m=document.createElement('p'); m.className='msg';
+    m.textContent = !st[me] ? 'Tap the card to answer.' : (!st[OTHER[me]] ? `Waiting for ${NAMES[OTHER[me]]}'s card…` : 'Both cards are down — tap to see.');
+    t.appendChild(m);
+  }
+  }
+
+  // hand
+  const hand=$('#hand'); hand.innerHTML='';
+  const used=pickedIds(), cp=canPick();
+  hand.classList.toggle('locked',!cp.ok);
+  const rem=HAND_ORDER.filter(id=>!used.has(id));
+  $('#handLabel').textContent = rem.length ? `Your hand · ${rem.length} left` : 'Hand empty';
+  rem.forEach((id,i)=>{
+    const c=CARDS[id], el=cardEl(c);
+    el.style.zIndex=i; el.dataset.id=id;
+    if(liftedId===id) el.classList.add('lift');
+    el.onclick=()=>{ if(!cp.ok){ toast(cp.why); return; } liftedId = liftedId===id?null:id; renderTable();
+      if(liftedId!==null) requestAnimationFrame(()=>hand.querySelector(`[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'})); };
+    hand.appendChild(el);
+  });
+  if(!hand._fan){ hand._fan=true; hand.addEventListener('scroll',()=>requestAnimationFrame(fanHand),{passive:true}); window.addEventListener('resize',fanHand);
+    requestAnimationFrame(()=>{ hand.scrollLeft=(hand.scrollWidth-hand.clientWidth)/2; fanHand(); }); }
+  fanHand();
+  $('#lockNote').textContent = cp.ok ? (liftedId===null?'Tap a card to lift it.':'') : cp.why;
+  const pw=$('#playWrap'); pw.innerHTML='';
+  if(cp.ok && liftedId!==null && !used.has(liftedId)){
+    const b=document.createElement('button'); b.className='btn'; b.textContent='Play this card';
+    b.onclick=playLifted; pw.appendChild(b);
+  }
+}
+
+// cards curve into an arc around the centre of the screen as the hand scrolls
+function fanHand(){
+  const hand=$('#hand'), hr=hand.getBoundingClientRect(), cx=hr.left+hr.width/2;
+  hand.querySelectorAll('.pcard').forEach(el=>{
+    if(el.classList.contains('lift')){ el.style.transform=''; return; }
+    const r=el.getBoundingClientRect(), dx=(r.left+r.width/2-cx)/(hr.width/2);
+    const k=Math.max(-1.3,Math.min(1.3,dx));
+    el.style.transform=`translateY(${(k*k*22).toFixed(1)}px) rotate(${(k*16).toFixed(1)}deg)`;
+  });
+}
+async function playLifted(){
+  const id=liftedId, n=playedCount()+1;
+  const ok=await store.pick(n,id,me);
+  liftedId=null;
+  if(!ok){ toast(`${NAMES[OTHER[me]]} already picked today's card!`); return; }
+  openCard(n);
+}
+
+/* =========================================================
+   CARD MODAL — answer / wait / reveal
+   ========================================================= */
+async function openCard(n){
+  openN=n; selOpt=null;
+  $('#cardOv').classList.add('show');
+  if(mineCache[n+me]===undefined && S.status[n]?.[me]) mineCache[n+me]=await store.getMine(n,me);
+  renderCard(true);
+}
+function closeCard(){ openN=null; $('#cardOv').classList.remove('show'); maybeFinale(); }
+$('#cardOv').addEventListener('click',e=>{ if(e.target.id==='cardOv') closeCard(); });
+
+async function refreshOpenCard(){ if(openN!==null && $('#cardOv').classList.contains('show')) renderCard(false); }
+
+let lastRendered='';
+async function renderCard(fresh){
+  const n=openN, pick=S.picks[n]; if(!pick) return;
+  const c=CARDS[pick.cardId], st=S.status[n]||{};
+  const both=st.azra&&st.philip;
+  const sig=JSON.stringify([n,st,selOpt,!!answersCache[n]]);
+  if(!fresh && sig===lastRendered) return; lastRendered=sig;
+  const col=isRed(c.suit)?'red':'blk';
+  const sh=$('#cardSheet'); sh.innerHTML=''; const tok=renderCard.tok=(renderCard.tok||0)+1;
+  const close=document.createElement('button'); close.className='close'; close.textContent='×'; close.onclick=closeCard; sh.appendChild(close);
+
+  const qc=document.createElement('div'); qc.className='q-card';
+  if(!fresh) qc.style.animation='none';
+  qc.innerHTML=`<div class="corner tl ${col}">${c.rank}<br>${c.suit}</div><div class="corner br ${col}">${c.rank}<br>${c.suit}</div>
+    <div class="num">Card ${n} of ${CARDS.length}</div><h3>${c.q}</h3>`;
+  sh.appendChild(qc);
+
+  const mine=st[me];
+  if(!mine){
+    if(c.type==='choice'){
+      const box=document.createElement('div'); box.className='opts';
+      c.o.forEach((o,i)=>{ const b=document.createElement('button'); b.className='opt'+(selOpt===i?' sel':''); b.textContent=o;
+        b.onclick=()=>{ selOpt=i; box.querySelectorAll('.opt').forEach((x,j)=>x.classList.toggle('sel',j===i)); go.disabled=false; }; box.appendChild(b); });
+      qc.appendChild(box);
+    } else {
+      const inp=document.createElement('input'); inp.className='txt'; inp.placeholder='One word…'; inp.maxLength=40;
+      inp.oninput=()=>{ go.disabled=!inp.value.trim(); }; qc.appendChild(inp);
+    }
+    const act=document.createElement('div'); act.className='q-actions';
+    const go=document.createElement('button'); go.className='btn'; go.textContent='Lock my card'; go.disabled=true;
+    go.onclick=async()=>{
+      go.disabled=true;
+      const ans = c.type==='choice' ? selOpt : qc.querySelector('.txt').value.trim();
+      mineCache[n+me]=ans; await store.submit(n,me,ans);
+    };
+    act.appendChild(go); qc.appendChild(act);
+    return;
+  }
+
+  if(!both){
+    const my=mineCache[n+me];
+    const txt = my===undefined ? '' : (c.type==='choice'?c.o[my]:my);
+    qc.insertAdjacentHTML('beforeend',`<div class="opts"><button class="opt sel" disabled>Your card: ${escapeHtml(txt)}</button></div>
+      <p class="waiting">Waiting for ${NAMES[OTHER[me]]}'s card… 🂠</p>`);
+    return;
+  }
+
+  // ---- reveal ----
+  if(!answersCache[n]) answersCache[n]=await store.getAnswers(n);
+  const A=answersCache[n];
+  const show_=v=> c.type==='choice' ? c.o[v] : v;
+  const rv=document.createElement('div'); rv.className='reveal';
+  ['azra','philip'].forEach(p=>{
+    rv.insertAdjacentHTML('beforeend',`<div class="rcard"><div class="inner"><div class="b"></div>
+      <div class="f"><div class="who">${NAMES[p]}</div><div class="ans">${escapeHtml(show_(A[p]))}</div></div></div></div>`);
+  });
+  sh.appendChild(rv);
+  const ver=document.createElement('div'); ver.className='verdict'; sh.appendChild(ver);
+  requestAnimationFrame(()=>setTimeout(()=>{ rv.querySelectorAll('.rcard').forEach((r,i)=>setTimeout(()=>r.classList.add('flip'), fresh? 250+i*350 : 0)); }, 30));
+
+  let match = c.type==='choice' ? A.azra===A.philip : norm(A.azra)===norm(A.philip);
+  if(!match && c.type==='text' && st.conf_azra && st.conf_philip) match=true;
+  if(match && st.match!==true) store.patchStatus(n,{match:true});
+
+  setTimeout(()=>{
+    if(tok!==renderCard.tok) return;
+    if(match){ ver.innerHTML=`Same card! +1 wish 🪙<small>${wishes()} ${wishes()===1?'wish':'wishes'} on the table</small>`; }
+    else if(c.type==='text'){
+      const iConf=st['conf_'+me], oConf=st['conf_'+OTHER[me]];
+      ver.innerHTML=`Close enough?<small>${iConf ? (oConf?'':`Waiting for ${NAMES[OTHER[me]]} to agree…`) : 'If you both say it counts, it\'s a wish.'}</small>`;
+      if(!iConf){ const b=document.createElement('button'); b.className='btn ghost'; b.style.marginTop='12px'; b.textContent='That counts!';
+        b.onclick=()=>store.patchStatus(n,{['conf_'+me]:true}); ver.appendChild(b); }
+    }
+    else ver.innerHTML=`Different hands this time.<small>Now you know something new ♥</small>`;
+    ver.classList.add('show');
+    if(c.note){ const no=document.createElement('div'); no.className='note'; no.textContent=c.note; sh.appendChild(no); }
+  }, fresh?1300:0);
+}
+/* =========================================================
+   FINALE — after all 30 cards are answered by both
+   ========================================================= */
+// ✍️ Azo: edit this letter freely. {WISHES} becomes the wish count.
+const FINAL_LETTER = `
+<div class="salute">Spatzkim,</div>
+<p>Three months. Salerno in September, Flight 828 in October, and now this little card table in November.</p>
+<p>And here we are — at the end of our first three months of this game. I love you so much, and I really hope you loved every riddle, every flight and every single card.</p>
+<div class="wishline">🪙 {WISHES} wishes on the table</div>
+<p>They're all yours. Use them wisely — or not wisely at all. I'll keep every single one.</p>
+<div class="sign">Forever your Detective A,<br>Azo ☾☀</div>`;
+const allDone = ()=> playedCount()>=CARDS.length && Object.keys(S.picks).every(n=>S.status[n]?.azra && S.status[n]?.philip);
+function showFinale(){
+  const w=wishes();
+  $('#letter').innerHTML = FINAL_LETTER.replace('{WISHES}', w);
+  $('#finTag').textContent = me==='azra' ? '(This is the letter Flips sees.)' : '';
+  $('#finOv').classList.add('show');
+  ls.set('nov_finale_seen_'+me,'1');
+}
+$('#finClose').onclick=()=>$('#finOv').classList.remove('show');
+function maybeFinale(){
+  if(!allDone()) return;
+  if(!ls.get('nov_finale_seen_'+me) && !$('#cardOv').classList.contains('show')) setTimeout(showFinale,600);
+}
+const escapeHtml=s=>String(s??'').replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+
+/* =========================================================
+   ARCHIVE
+   ========================================================= */
+$('#archBtn').onclick=async()=>{
+  $('#archOv').classList.add('show');
+  const list=$('#archList'); list.innerHTML='';
+  const ns=Object.keys(S.picks).map(Number).sort((a,b)=>b-a);
+  if(!ns.length){ list.innerHTML='<p class="empty">No cards played yet. The night is young.</p>'; return; }
+  for(const n of ns){
+    const c=CARDS[S.picks[n].cardId], st=S.status[n]||{};
+    const it=document.createElement('div'); it.className='arch-item';
+    let aa='';
+    if(st.azra&&st.philip){
+      if(!answersCache[n]) answersCache[n]=await store.getAnswers(n);
+      const A=answersCache[n], f=v=>escapeHtml(c.type==='choice'?c.o[v]:v);
+      aa=`<span><b>Azo:</b> ${f(A.azra)}</span><span><b>Flips:</b> ${f(A.philip)}</span>`;
+    } else aa=['azra','philip'].map(p=>`<span><b>${NAMES[p]}:</b> ${st[p]?'🂠 hidden':'…'}</span>`).join('');
+    it.innerHTML=`<div class="top"><span>Card ${n} · <span class="${isRed(c.suit)?'red':''}" style="${isRed(c.suit)?'':'color:var(--cream)'}">${c.rank}${c.suit}</span></span><span>${st.match===true?'🪙 wish':''}</span></div>
+      <div class="qq">${c.q}</div><div class="aa">${aa}</div>`;
+    it.onclick=()=>{ $('#archOv').classList.remove('show'); openCard(n); };
+    list.appendChild(it);
+  }
+};
+$('#archClose').onclick=()=>$('#archOv').classList.remove('show');
+
+/* =========================================================
+   DEV PANEL (local test mode only)
+   ========================================================= */
+function devPanel(){
+  const d=$('#dev'); d.classList.add('show');
+  const add=(t,f)=>{ const b=document.createElement('button'); b.textContent=t; b.onclick=f; d.appendChild(b); };
+  add('🧪 TEST',()=>d.classList.toggle('open'));
+  add('Switch player',()=>{ me=OTHER[me||'azra']; ls.set(LS.player,me); toast(`Now playing as ${NAMES[me]}`); if(started) enterTable(); });
+  add('Reset game',()=>{ if(confirm('Wipe all local answers?')){ store.reset(); Object.keys(answersCache).forEach(k=>delete answersCache[k]); Object.keys(mineCache).forEach(k=>delete mineCache[k]); toast('Reset'); } });
+  add('Replay intro',()=>{ ls.del(LS.intro); sessionStorage.removeItem(LS.pinOk); location.reload(); });
+  add('Show last letter',()=>showFinale());
+  add('Auto-play all 30',async()=>{ for(let n=playedCount()+1;n<=CARDS.length;n++){ const id=HAND_ORDER.find(i=>!pickedIds().has(i)); await store.pick(n,id,'philip');
+      const c=CARDS[id], v={}; for(const p of ['azra','philip']){ v[p]=c.type==='text'?'us':Math.floor(Math.random()*c.o.length); await store.submit(n,p,v[p]); }
+      if(v.azra===v.philip) await store.patchStatus(n,{match:true}); }
+      toast('All cards played'); });
+  add('Forget player',()=>{ ls.del(LS.player); location.reload(); });
+}
+
+/* =========================================================
+   BOOT
+   ========================================================= */
+(async function boot(){
+  try{ store = CONFIG.FIREBASE ? await makeFirestore(CONFIG.FIREBASE) : makeLocalStore(); await store.init(); }
+  catch(e){
+    console.error('Firebase failed',e);
+    if(CONFIG.FIREBASE){ // never fall back silently: answers would stay on this device only
+      document.body.insertAdjacentHTML('beforeend',`<div class="vault show"><div class="big">🃏</div><h2 class="title">The table is out of reach.</h2>
+        <p class="sub">Check the internet connection and reload the page.</p><button class="btn" onclick="location.reload()">Reload</button></div>`);
+      return;
+    }
+    store=makeLocalStore();
+  }
+  if(store.mode==='local' || new URLSearchParams(location.search).has('dev')) devPanel();
+  if(!ls.get(LS.intro)) runIntro();
+  else if(sessionStorage.getItem(LS.pinOk)) afterPin();
+  else runPin();
+})();
+</script>
+</body>
+</html>
